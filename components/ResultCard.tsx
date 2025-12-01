@@ -1,5 +1,5 @@
-import React from 'react';
-import { Ruler, Info, Download } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Ruler, Info, Download, Copy, Check, Share2 } from 'lucide-react';
 import { AnalysisResult } from '../types';
 
 interface ResultCardProps {
@@ -8,9 +8,116 @@ interface ResultCardProps {
 }
 
 export const ResultCard: React.FC<ResultCardProps> = ({ result, image }) => {
+  const imgRef = useRef<HTMLImageElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'success'>('idle');
+  const [isGenerating, setIsGenerating] = useState(false);
+
   if (!result || !image) return null;
 
-  const garmentTypeLabel = result.clothingType === 'SHIRT' ? '상의' : '하의';
+  const getGarmentLabel = (type: string) => {
+    switch (type) {
+      case 'SHIRT': return '상의';
+      case 'PANTS': return '하의';
+      case 'SKIRT': return '스커트';
+      case 'DRESS': return '원피스';
+      case 'OUTER': return '아우터 (자켓/패딩)';
+      default: return '의류';
+    }
+  };
+
+  const garmentTypeLabel = getGarmentLabel(result.clothingType);
+
+  const generateCompositeCanvas = async (): Promise<HTMLCanvasElement | null> => {
+    if (!imgRef.current || !svgRef.current) return null;
+    setIsGenerating(true);
+
+    try {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = imgRef.current;
+      const svg = svgRef.current;
+
+      // Use natural dimensions for full resolution
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+
+      if (!ctx) return null;
+
+      // 1. Draw Original Image
+      ctx.drawImage(img, 0, 0);
+
+      // 2. Prepare SVG for rasterization
+      // We clone the SVG node to modify attributes without affecting the DOM
+      const svgClone = svg.cloneNode(true) as SVGSVGElement;
+      
+      // Explicitly set width/height to match canvas to ensure correct scaling logic
+      svgClone.setAttribute('width', canvas.width.toString());
+      svgClone.setAttribute('height', canvas.height.toString());
+
+      const serializer = new XMLSerializer();
+      const svgString = serializer.serializeToString(svgClone);
+      
+      // Create a Blob from the SVG string
+      const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+
+      // Load SVG as an image
+      const svgImg = new Image();
+      svgImg.src = url;
+      // 'crossOrigin' usually not needed for blob URLs created locally, but good practice
+      svgImg.crossOrigin = "anonymous"; 
+
+      await new Promise((resolve, reject) => {
+        svgImg.onload = resolve;
+        svgImg.onerror = reject;
+      });
+
+      // Draw SVG overlay onto canvas
+      ctx.drawImage(svgImg, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      
+      return canvas;
+    } catch (e) {
+      console.error("Failed to generate composite image", e);
+      return null;
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleDownload = async () => {
+    const canvas = await generateCompositeCanvas();
+    if (!canvas) return;
+
+    const link = document.createElement('a');
+    link.download = `nano-tailor-${result.clothingType}-${Date.now()}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  };
+
+  const handleCopy = async () => {
+    try {
+      const canvas = await generateCompositeCanvas();
+      if (!canvas) return;
+
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': blob })
+          ]);
+          setCopyStatus('success');
+          setTimeout(() => setCopyStatus('idle'), 2000);
+        } catch (err) {
+          console.error('Clipboard write failed', err);
+          alert('이미지 복사에 실패했습니다. 브라우저 권한을 확인해주세요.');
+        }
+      }, 'image/png');
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   return (
     <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden shadow-xl backdrop-blur-sm animate-fade-in-up flex flex-col h-full">
@@ -24,6 +131,36 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, image }) => {
             <p className="text-xs text-slate-400">기준: {result.rulerLengthCm}cm 줄자</p>
           </div>
         </div>
+        
+        <div className="flex items-center gap-2">
+           <button
+             onClick={handleCopy}
+             disabled={isGenerating}
+             className="flex items-center gap-2 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs rounded-lg transition-colors border border-slate-600 disabled:opacity-50"
+             title="이미지 복사"
+           >
+             {copyStatus === 'success' ? (
+               <>
+                 <Check size={14} className="text-green-400" />
+                 <span className="text-green-400 font-medium">복사됨</span>
+               </>
+             ) : (
+               <>
+                 <Copy size={14} />
+                 <span>복사</span>
+               </>
+             )}
+           </button>
+           <button
+             onClick={handleDownload}
+             disabled={isGenerating}
+             className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded-lg transition-colors shadow-lg shadow-indigo-600/20 disabled:opacity-50"
+             title="이미지 다운로드"
+           >
+             <Download size={14} />
+             <span>저장</span>
+           </button>
+        </div>
       </div>
 
       <div className="p-6 space-y-6 flex-1 overflow-y-auto">
@@ -31,14 +168,18 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, image }) => {
         {/* Visual Measurement Overlay */}
         <div className="relative w-full rounded-lg overflow-hidden border border-slate-700 bg-white/5 group">
           <img 
+            ref={imgRef}
             src={image} 
             alt="Analyzed Garment" 
             className="w-full h-auto block"
+            crossOrigin="anonymous"
           />
           <svg 
+            ref={svgRef}
             viewBox="0 0 1000 1000" 
             preserveAspectRatio="none"
             className="absolute inset-0 w-full h-full pointer-events-none"
+            xmlns="http://www.w3.org/2000/svg"
           >
             <defs>
               <filter id="text-shadow" x="-10%" y="-10%" width="120%" height="120%">

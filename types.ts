@@ -12,7 +12,7 @@ export interface Measurement {
 }
 
 export interface AnalysisResult {
-  clothingType: 'SHIRT' | 'PANTS';
+  clothingType: 'SHIRT' | 'PANTS' | 'SKIRT' | 'DRESS' | 'OUTER';
   rulerStart: Point;
   rulerEnd: Point;
   rulerLengthCm: number;

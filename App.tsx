@@ -39,21 +39,20 @@ const App: React.FC = () => {
   };
 
   const checkApiKey = async (): Promise<boolean> => {
-    // We check availability of the mechanism, but for 403 errors we force re-selection
-    if (model === 'gemini-3-pro-image-preview') {
-      try {
+    // Robust check for API key presence in the environment
+    try {
+      if (window.aistudio && window.aistudio.hasSelectedApiKey) {
         const hasKey = await window.aistudio.hasSelectedApiKey();
         if (!hasKey) {
           await window.aistudio.openSelectKey();
           return true;
         }
-        return true;
-      } catch (e) {
-        console.error("API Key selection failed", e);
-        return false;
       }
+      return true;
+    } catch (e) {
+      console.error("API Key selection failed", e);
+      return false;
     }
-    return true;
   };
 
   const handleAnalyze = async () => {
@@ -61,9 +60,10 @@ const App: React.FC = () => {
 
     setError(null);
     
+    // Always ensure an API key is selected before proceeding
     const keyReady = await checkApiKey();
     if (!keyReady) {
-      setError("선택한 모델을 사용하려면 API 키가 필요합니다.");
+      setError("API 키 확인에 실패했습니다. 키를 다시 선택해주세요.");
       return;
     }
 
@@ -77,23 +77,22 @@ const App: React.FC = () => {
       console.error("Analysis Error:", err);
       
       const errorMessage = err.message || JSON.stringify(err);
-      const isPermissionError = errorMessage.includes("403") || 
-                                errorMessage.includes("PERMISSION_DENIED") || 
-                                errorMessage.includes("Referrer");
+      
+      // Handle various permission/key missing errors by prompting for key
+      const isKeyError = 
+        errorMessage.includes("403") || 
+        errorMessage.includes("PERMISSION_DENIED") || 
+        errorMessage.includes("Referrer") ||
+        errorMessage.includes("Requested entity was not found") ||
+        errorMessage.includes("API Key is missing");
 
-      if (isPermissionError) {
+      if (isKeyError) {
          try {
             await window.aistudio.openSelectKey();
-            setError("현재 API 키로 권한이 거부되었습니다. 유효한 키로 다시 시도해주세요.");
+            // Optional: You could auto-retry here, but letting the user click again is safer
+            setError("API 키 설정이 필요합니다. 키를 선택한 후 다시 시도해주세요.");
          } catch {
-            setError("API 키 권한이 거부되었습니다. 키 설정을 확인해주세요.");
-         }
-      } else if (errorMessage.includes("Requested entity was not found")) {
-         try {
-            await window.aistudio.openSelectKey();
-            setError("API 키 문제가 감지되었습니다. 키를 다시 선택하고 시도해주세요.");
-         } catch {
-            setError("이미지 분석에 실패했습니다. API 키가 유효한지 확인해주세요.");
+            setError("API 키 권한 문제로 분석에 실패했습니다.");
          }
       } else {
         setError("이미지 분석 실패. " + (err.message ? err.message : "이미지 포맷을 확인해주세요."));
@@ -197,12 +196,11 @@ const App: React.FC = () => {
                   측정 결과는 이미지 위에 직관적으로 표시됩니다.
                 </li>
               </ul>
-              {model === 'gemini-3-pro-image-preview' && (
-                  <div className="mt-4 p-3 bg-indigo-500/10 rounded border border-indigo-500/20 text-xs text-indigo-200">
-                    <strong>참고:</strong> 프로 모델은 결제가 연결된 프로젝트의 API 키가 필요합니다.
-                    <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noreferrer" className="underline ml-1">자세히 보기</a>.
-                  </div>
-              )}
+              {/* Note: All models require API key in this environment, but emphasizing for Pro is still good practice */}
+              <div className="mt-4 p-3 bg-indigo-500/10 rounded border border-indigo-500/20 text-xs text-indigo-200">
+                <strong>참고:</strong> 이 앱은 Gemini API를 사용하며, 결제가 연결된 프로젝트의 API 키가 필요할 수 있습니다.
+                <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noreferrer" className="underline ml-1">자세히 보기</a>.
+              </div>
             </div>
           </div>
 
@@ -216,7 +214,7 @@ const App: React.FC = () => {
                  <div>
                    <h3 className="font-semibold text-red-400 mb-1">분석 오류</h3>
                    <p className="text-sm opacity-90">{error}</p>
-                   {(error?.includes("Key") || error?.includes("Permission") || error?.includes("권한")) && (
+                   {(error?.includes("Key") || error?.includes("Permission") || error?.includes("권한") || error?.includes("설정")) && (
                       <button 
                         onClick={openKeySelector}
                         className="mt-3 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded text-xs font-medium text-red-100 transition-colors"
