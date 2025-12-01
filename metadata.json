@@ -1,0 +1,5 @@
+{
+  "name": "AI Tailor V2",
+  "description": "Analyze garment images with embedded rulers to automatically estimate measurements using the Gemini 2.5 Flash Image model.",
+  "requestFramePermissions": []
+}
