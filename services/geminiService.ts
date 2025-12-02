@@ -41,42 +41,57 @@ export const analyzeGarmentImage = async (base64Image: string, model: GarmentMod
     Determine if the garment is a SHIRT (Top), PANTS (Bottom), SKIRT (Skirt), DRESS (One-piece), or OUTER (Jacket/Padding).
     Measure the following segments using strict sewing standards.
     Coordinates must be precise (0-1000 scale).
+
+    **GLOBAL RULE: IGNORE WRINKLES**
+    -   Garments often have fabric folds, wrinkles, or shadow lines inside the body.
+    -   **NEVER** measure to a wrinkle. 
+    -   **ALWAYS** measure to the **OUTERMOST SILHOUETTE EDGE** where the garment meets the background.
     
     === IF SHIRT (상의) ===
     1.  **Shoulder Width (어깨너비)**:
-        -   Find the Left Shoulder Point (where sleeve seam meets body).
-        -   Find the Right Shoulder Point.
-        -   Measure the straight HORIZONTAL line between them.
-        -   Constraint: The Y-coordinates should be similar. Do not measure diagonally.
+        -   **TARGET**: The horizontal distance between the **Left Shoulder Point (SP)** and **Right Shoulder Point (SP)**.
+        -   **DEFINITION of SP**: The specific structural corner where the **Top Shoulder Slope** meets the **Vertical Armhole Seam**.
+        -   **CRITICAL FIX**: This point is at the **TOP** of the armhole. **Do NOT** measure across the middle of the body (Armpit level). You must find the HIGHEST outer corners of the body block.
+        -   Action: Measure the straight line between Left SP and Right SP.
+
     2.  **Chest Width (가슴단면)**:
-        -   From Left Armpit seam to Right Armpit seam. Flat horizontal line.
+        -   **TARGET**: The horizontal distance between the Left and Right **Armpits (Axilla)**.
+        -   **DEFINITION**: The bottom junction where the sleeve underarm seam meets the body side seam.
+        -   **LOCATION**: This is significantly LOWER than the Shoulder Point.
+        -   Action: Measure straight across from armpit to armpit.
+
     3.  **Sleeve Length (소매길이)**:
-        -   START: The Shoulder Point (seam where sleeve joins body).
-        -   END: The middle of the sleeve cuff/hem edge.
-        -   **WARNING**: Ignore decorative patches or prints. Measure from the actual structural seam.
-        -   Measure the straight distance between these two points.
+        -   **START**: The **Shoulder Point (SP)** (The exact same TOP corner point identified in Step 1).
+        -   **END**: The outer edge of the sleeve cuff.
+        -   **PATH**: Measure along the **OUTER** edge of the sleeve.
+        -   **WARNING**: Do NOT start from the neck collar. Do NOT start from the armpit. Start from the Top Shoulder Corner.
+
     4.  **Total Length (총장)**:
-        -   START: **High Point Shoulder (HPS)**. This is the specific point where the shoulder seam meets the collar/neck seam.
+        -   START: **High Point Shoulder (HPS)**. This is the intersection point where the shoulder seam meets the collar/neck seam.
+        -   **WARNING**: Do NOT start from the top of the collar. Start at the seam *below* the collar.
         -   END: A point on the bottom hem that is **DIRECTLY VERTICAL** below the start point.
-        -   **CRITICAL CONSTRAINT**: The line must be **VERTICAL** (perpendicular to the floor). The X-coordinate of Start and End must be virtually the same. **DO NOT** draw a diagonal line to the center or side. Drop a straight line down.
+        -   **CRITICAL CONSTRAINT**: The line must be **VERTICAL** (perpendicular to the floor). The X-coordinate of Start and End must be virtually the same.
     
     === IF PANTS (하의) ===
     1.  **Waist Width (허리단면)**:
         -   Left waist edge to Right waist edge (straight across).
+        -   **WARNING**: Ignore belt loops or waistband puckering. Find the true side edge.
     2.  **Hip Width (엉덩이단면)**:
         -   Widest part of the hip area (straight across).
+        -   **WARNING**: If there are pockets causing folds, you MUST ignore the fold. 
+            Measure the **OUTTERMOST** silhouette edge of the width.
     3.  **Thigh Width (허벅지단면)**:
-        -   START: The **Crotch Intersection** (십자선) - where the left and right legs meet.
-        -   END: The outer edge of the thigh leg.
+        -   START: The **Crotch Intersection** (십자선).
+        -   END: The **OUTERMOST** silhouette edge of the thigh.
+        -   **CRITICAL WARNING**: Pants often have heavy wrinkles or folds near the crotch/thigh ("Whiskering"). **IGNORE** these internal lines. Measure all the way to the background boundary.
         -   DIRECTION: Strictly **HORIZONTAL** from the crotch outwards.
     4.  **Hem Width (밑단단면)**:
-        -   Measure the width of the leg opening at the bottom.
         -   From the inner corner of the hem to the outer corner of the hem.
         -   **Constraint**: Strictly **HORIZONTAL**. The Y-coordinates of start and end points must be similar. **DO NOT** measure diagonally even if the hem is curved. Measure the horizontal projection.
     5.  **Total Length (총장)**:
-        -   START: Top edge of the waist band (usually at the side outseam).
+        -   START: Top edge of the waist band (Side Outseam).
         -   END: Bottom edge of the hem leg (on the same side).
-        -   CONSTRAINT: Measure the full length. Ideally, this follows the outseam. If the user asks for a vertical line, ensure the start and end points align vertically as much as the garment shape allows. **Prevent diagonal skew across the body.**
+        -   CONSTRAINT: Follow the outseam silhouette. Ignore any leg twisting or wrinkling.
 
     === IF SKIRT (스커트) ===
     1.  **Waist Width (허리단면)**:
@@ -108,20 +123,18 @@ export const analyzeGarmentImage = async (base64Image: string, model: GarmentMod
 
     === IF OUTER (아우터/자켓/패딩) ===
     1.  **Shoulder Width (어깨너비)**:
-        -   **CRITICAL FOR HOODED COATS (LONG PADDING)**: The top of the image is often a HOOD. **IGNORE THE HOOD (모자).**
-        -   **LANDMARK**: Look BELOW the hood/collar. Identify the **Sleeve Insertion Seam**. This is the structural seam where the sleeve attaches to the body.
-        -   **ACTION**: Measure from the Left Shoulder Seam to the Right Shoulder Seam.
-        -   **CHECK**: The points must be at the shoulder corners, NOT on the hood or collar.
+        -   **CRITICAL FOR HOODED COATS**: **IGNORE THE HOOD**. Look BELOW the hood.
+        -   **LANDMARK**: The **"Shoulder Point"** (SP). This is the structural seam where the sleeve circle attaches to the body block.
+        -   **ACTION**: Measure the horizontal distance between the Left SP and Right SP.
     2.  **Chest Width (가슴단면)**:
         -   **LANDMARK**: The **Armpit Point** (Axilla). Where the side seam meets the underarm sleeve seam.
         -   **ACTION**: Measure straight across from left armpit to right armpit.
     3.  **Sleeve Length (소매길이)**:
-        -   **START POINT**: You MUST use the **EXACT SAME POINT** as the 'Shoulder Point' used in the Shoulder Width step (The Sleeve Seam).
-        -   **DO NOT START FROM THE HOOD**.
+        -   **START POINT**: The **"Shoulder Point"** (The exact same TOP point used for shoulder width).
         -   **END POINT**: The outer edge of the sleeve cuff.
         -   **WARNING**: Ignore epaulets, tabs, or logo patches. Find the structural sewing line.
     4.  **Total Length (총장)**:
-        -   **START**: The **High Point Shoulder (HPS)** or the Side Neck Point. 
+        -   **START**: The **High Point Shoulder (HPS)** or Side Neck Point. 
         -   **WARNING**: Do NOT include the Hood height. Start where the shoulder meets the neck/collar.
         -   **END**: Bottom hem vertically down.
         -   Constraint: Ensure the line is strictly vertical.
