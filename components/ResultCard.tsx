@@ -250,17 +250,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, image }) => {
             </g>
             
             {/* 2. Measurements (Blue) */}
-            {result.measurements.map((m, idx) => {
-              const dx = m.end.x - m.start.x;
-              const dy = m.end.y - m.start.y;
-              const len = Math.sqrt(dx * dx + dy * dy);
-              
-              // If measurement line is shorter than label (approx 180px),
-              // shift label down to avoid covering arrowheads.
-              const isObstructed = len < 200;
-              const yOffset = isObstructed ? 35 : 0;
-
-              return (
+            {result.measurements.map((m, idx) => (
               <g key={idx}>
                 {/* Contrast Outline */}
                 <line 
@@ -282,7 +272,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, image }) => {
                 <circle cx={m.end.x} cy={m.end.y} r="4" fill="#2563eb" stroke="white" strokeWidth="1.5" />
                 
                 {/* Floating Label: White Box, Blue Text */}
-                <g transform={`translate(${(m.start.x + m.end.x) / 2}, ${(m.start.y + m.end.y) / 2 + yOffset})`}>
+                <g transform={`translate(${(m.start.x + m.end.x) / 2}, ${(m.start.y + m.end.y) / 2})`}>
                   {/* Background Badge */}
                   <rect 
                     x="-90" y="-16" width="180" height="32" rx="8"
@@ -298,7 +288,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, image }) => {
                   </text>
                 </g>
               </g>
-            )})}
+            ))}
           </svg>
         </div>
 

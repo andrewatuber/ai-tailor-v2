@@ -26,5 +26,6 @@ export enum AppState {
   IDLE = 'IDLE',
   ANALYZING = 'ANALYZING',
   SUCCESS = 'SUCCESS',
-  ERROR = 'ERROR'
+  ERROR = 'ERROR',
+  TESTING = 'TESTING' // Added for Test Mode
 }
